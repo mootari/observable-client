@@ -1,0 +1,15 @@
+{
+  "name": "observable-client",
+  "version": "0.1.0",
+  "license": "MIT",
+  "main": "index.js",
+  "author": "Fabian Iwand",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mootari/observable-client.git"
+  },
+  "dependencies": {
+    "prompts": "^2.0.3",
+    "superagent": "^4.1.0"
+  }
+}
