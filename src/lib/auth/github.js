@@ -17,7 +17,7 @@ module.exports = class GitHub {
 
   async authorize() {
     const {agent, SITE_URL, API_URL} = this.client;
-    await this.client.ensureToken();
+    this.client.ensureToken();
     const redirectPath = '/';
 
     let step = await agent.get('https://github.com/login/oauth/authorize').query({
