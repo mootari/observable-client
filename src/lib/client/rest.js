@@ -39,7 +39,7 @@ module.exports = class RestClient {
     const path = this.API_URL + '/' + route.replace(/^\//, '');
     if(!m.match(/^(get|post|delete)$/)) throw Error(`Invalid request method "${method}"`);
 
-    await this.ensureToken();
+    this.ensureToken();
     const req = this.agent[m](path).set({Origin: this.SITE_URL});
 
     if(data !== null) {
