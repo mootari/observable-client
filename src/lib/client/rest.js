@@ -48,12 +48,7 @@ module.exports = class RestClient {
       else throw Error(`Request method "${method}" does not allow data.`);
     }
 
-    try {
-      return (await req);
-    } catch (e) {
-      // todo: throw?
-      return null;
-    }
+    return req;
   }
 
   /**
