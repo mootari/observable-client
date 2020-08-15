@@ -30,11 +30,19 @@ module.exports = class GitHubPrompt extends GitHub {
   }
 
   async get2FAToken() {
-    const token = (await prompts({
+    return (await prompts({
       type: 'text',
       name: 'value',
       message: 'GitHub 2FA Token',
     })).value;
-    return token;
   }
+
+  async getDeviceVerificationCode() {
+    return (await prompts({
+      type: 'text',
+      name: 'value',
+      message: 'GitHub device verification code',
+    })).value;
+  }
+
 };
