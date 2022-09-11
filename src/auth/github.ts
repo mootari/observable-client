@@ -1,9 +1,14 @@
-'use strict';
+import {load as cheerio} from 'cheerio';
+import { Response } from 'superagent';
+import RestClient from '../client/rest';
 
-const cheerio = require('cheerio');
+export default class GitHub {
+  client: RestClient;
+  loginName?: string;
+  loginPass?: string;
+  maxAttempts: number;
 
-module.exports = class GitHub {
-  constructor(client, options = {}) {
+  constructor(client: RestClient, options: {loginName?: string, loginPass?: string} = {}) {
     const {loginName, loginPass} = options;
 
     this.client = client;
@@ -15,7 +20,7 @@ module.exports = class GitHub {
   async authorize() {
     const {SITE_URL} = this.client;
     const redirectPath = '/';
-    const submit = (url, data) => this.client.agent.post(url)
+    const submit = (url: string, data: string | object | undefined) => this.client.agent.post(url)
       .set('Content-Type', 'application/x-www-form-urlencoded')
       .send(data);
 
@@ -54,7 +59,7 @@ module.exports = class GitHub {
         ...this.getFormData(step),
         otp: await this.get2FAToken(),
       };
-      step = await submit(step.request.url, data);
+      step = await submit(step.header.location, data);
     }
 
     // Github: Enter device verification code
@@ -70,6 +75,8 @@ module.exports = class GitHub {
     }
 
     if(!this.matchUrl(step, SITE_URL + redirectPath)) {
+      // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
+      /* @ts-ignore */
       throw Error(`Unknown login state - ended up on "${step.request.url}"`);
     }
 
@@ -89,12 +96,18 @@ module.exports = class GitHub {
     throw Error('Non-interactive authenticator does not support device verification');
   }
 
-  getFormData(response) {
-    const data = cheerio.load(response.text)('form').first().serializeArray();
-    return Object.fromEntries(data.map(({name, value}) => [name, value]));
+  getFormData(response: Response) {
+    const data = cheerio(response.text)('form')
+    .first().serializeArray();
+    return Object.fromEntries(data.map(({
+      name,
+      value
+    }: any) => [name, value]));
   }
 
-  matchUrl(response, path) {
+  matchUrl(response: Response, path: string) {
+    // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
+    /* @ts-ignore */
     return response.request.url.split('?', 2)[0] === path;
   }
 };
