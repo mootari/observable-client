@@ -9,7 +9,7 @@
     "strict": true,
     "declaration": true,
     "declarationDir": "types",
-    //"skipLibCheck": true
+    "skipLibCheck": true
   },
   "include": ["src/**/*"]
 }
