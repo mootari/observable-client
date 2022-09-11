@@ -1,15 +1,17 @@
-'use strict';
+import GitHub from './github';
+import RestClient from '../client/rest';
+import prompts from 'prompts';
 
-const GitHub = require('./github');
-const prompts = require('prompts');
+const GH_NAME_PATTERN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
-module.exports = class GitHubPrompt extends GitHub {
-  constructor(client, options = {}) {
+export default class GitHubPrompt extends GitHub {
+  
+  constructor(client: RestClient, options: {loginName?: string, loginPass?: string, maxAttempts?: number} = {}) {
     super(client, options);
-    if(this.loginPass && !this.loginName) {
+    if (this.loginPass && !this.loginName) {
       throw Error('Set default password without default username');
     }
-    this.maxAttempts = +options.maxAttempts || 3;
+    this.maxAttempts = Math.max(1, +(options.maxAttempts || 3));
   }
 
   async getCredentials() {
@@ -17,7 +19,7 @@ module.exports = class GitHubPrompt extends GitHub {
       type: 'text',
       name: 'value',
       message: 'GitHub username',
-      validate: v => (v.match(/^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i) ? true : 'Invalid name'),
+      validate: (v: string) => v.match(GH_NAME_PATTERN) ? true : 'Invalid name',
     })).value;
     const pass = this.loginPass || (await prompts({
       type: 'text',
@@ -25,7 +27,6 @@ module.exports = class GitHubPrompt extends GitHub {
       style: 'password',
       message: 'GitHub password',
     })).value;
-
     return [name, pass];
   }
 
@@ -44,5 +45,4 @@ module.exports = class GitHubPrompt extends GitHub {
       message: 'GitHub device verification code',
     })).value;
   }
-
-};
+}

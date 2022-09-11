@@ -1,9 +1,20 @@
-'use strict';
+import {load as cheerio} from 'cheerio';
+import { Response } from 'superagent';
+import RestClient from '../client/rest';
 
-const cheerio = require('cheerio');
+const currentUrl = (response: Response): string => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore: https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
+  return response.request.url;
+};
 
-module.exports = class GitHub {
-  constructor(client, options = {}) {
+export default class GitHub {
+  client: RestClient;
+  loginName?: string;
+  loginPass?: string;
+  maxAttempts: number;
+
+  constructor(client: RestClient, options: {loginName?: string, loginPass?: string} = {}) {
     const {loginName, loginPass} = options;
 
     this.client = client;
@@ -12,12 +23,15 @@ module.exports = class GitHub {
     this.maxAttempts = 1;
   }
 
+  submit(url: string, data: string | object | undefined) {
+    return this.client.agent.post(url)
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send(data);
+  }
+
   async authorize() {
     const {SITE_URL} = this.client;
     const redirectPath = '/';
-    const submit = (url, data) => this.client.agent.post(url)
-      .set('Content-Type', 'application/x-www-form-urlencoded')
-      .send(data);
 
     // Observable: Login
     this.client.ensureToken();
@@ -42,7 +56,7 @@ module.exports = class GitHub {
         login: name,
         password: pass,
       };
-      step = await submit('https://github.com/session', data);
+      step = await this.submit('https://github.com/session', data);
     }
 
     // Github: Enter 2FA token
@@ -54,7 +68,7 @@ module.exports = class GitHub {
         ...this.getFormData(step),
         otp: await this.get2FAToken(),
       };
-      step = await submit(step.request.url, data);
+      step = await this.submit(currentUrl(step), data);
     }
 
     // Github: Enter device verification code
@@ -66,11 +80,11 @@ module.exports = class GitHub {
         ...this.getFormData(step),
         otp: await this.getDeviceVerificationCode(),
       };
-      step = await submit('https://github.com/sessions/verified-device', data);
+      step = await this.submit('https://github.com/sessions/verified-device', data);
     }
 
     if(!this.matchUrl(step, SITE_URL + redirectPath)) {
-      throw Error(`Unknown login state - ended up on "${step.request.url}"`);
+      throw Error(`Unknown login state - ended up on "${currentUrl(step)}"`);
     }
 
     return this.client.isAuthorized();
@@ -89,12 +103,15 @@ module.exports = class GitHub {
     throw Error('Non-interactive authenticator does not support device verification');
   }
 
-  getFormData(response) {
-    const data = cheerio.load(response.text)('form').first().serializeArray();
-    return Object.fromEntries(data.map(({name, value}) => [name, value]));
+  getFormData(response: Response) {
+    const data = cheerio(response.text)('form')
+    .first().serializeArray();
+    return Object.fromEntries(
+      data.map(({name, value}: {name: string, value: string}) => [name, value])
+    );
   }
 
-  matchUrl(response, path) {
-    return response.request.url.split('?', 2)[0] === path;
+  matchUrl(response: Response, path: string) {
+    return currentUrl(response).split('?', 2)[0] === path;
   }
-};
+}
