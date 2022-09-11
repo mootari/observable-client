@@ -2,6 +2,12 @@ import {load as cheerio} from 'cheerio';
 import { Response } from 'superagent';
 import RestClient from '../client/rest';
 
+const currentUrl = (response: Response): string => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore: https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
+  return response.request.url;
+};
+
 export default class GitHub {
   client: RestClient;
   loginName?: string;
@@ -17,12 +23,15 @@ export default class GitHub {
     this.maxAttempts = 1;
   }
 
+  submit(url: string, data: string | object | undefined) {
+    return this.client.agent.post(url)
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send(data);
+  }
+
   async authorize() {
     const {SITE_URL} = this.client;
     const redirectPath = '/';
-    const submit = (url: string, data: string | object | undefined) => this.client.agent.post(url)
-      .set('Content-Type', 'application/x-www-form-urlencoded')
-      .send(data);
 
     // Observable: Login
     this.client.ensureToken();
@@ -47,7 +56,7 @@ export default class GitHub {
         login: name,
         password: pass,
       };
-      step = await submit('https://github.com/session', data);
+      step = await this.submit('https://github.com/session', data);
     }
 
     // Github: Enter 2FA token
@@ -59,7 +68,7 @@ export default class GitHub {
         ...this.getFormData(step),
         otp: await this.get2FAToken(),
       };
-      step = await submit(step.header.location, data);
+      step = await this.submit(currentUrl(step), data);
     }
 
     // Github: Enter device verification code
@@ -71,13 +80,11 @@ export default class GitHub {
         ...this.getFormData(step),
         otp: await this.getDeviceVerificationCode(),
       };
-      step = await submit('https://github.com/sessions/verified-device', data);
+      step = await this.submit('https://github.com/sessions/verified-device', data);
     }
 
     if(!this.matchUrl(step, SITE_URL + redirectPath)) {
-      // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
-      /* @ts-ignore */
-      throw Error(`Unknown login state - ended up on "${step.request.url}"`);
+      throw Error(`Unknown login state - ended up on "${currentUrl(step)}"`);
     }
 
     return this.client.isAuthorized();
@@ -99,15 +106,12 @@ export default class GitHub {
   getFormData(response: Response) {
     const data = cheerio(response.text)('form')
     .first().serializeArray();
-    return Object.fromEntries(data.map(({
-      name,
-      value
-    }: any) => [name, value]));
+    return Object.fromEntries(
+      data.map(({name, value}: {name: string, value: string}) => [name, value])
+    );
   }
 
   matchUrl(response: Response, path: string) {
-    // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/11837
-    /* @ts-ignore */
-    return response.request.url.split('?', 2)[0] === path;
+    return currentUrl(response).split('?', 2)[0] === path;
   }
-};
+}

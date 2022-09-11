@@ -83,7 +83,7 @@ export default class RestClient {
   /**
   * Ensures that a CSRF token has been generated.
   */
-  ensureToken(regenerate: boolean = false) {
+  ensureToken(regenerate = false) {
     if (!regenerate && this.getToken())
     return;
     const { domain, path, secure } = this.accessInfo;
@@ -96,5 +96,4 @@ export default class RestClient {
     const cookie = `T=${token}; Domain=${domain}; Path=${path}; Expires=${expires}; ${secure ? 'Secure' : ''}`;
     this.agent.jar.setCookie(cookie, domain, path);
   }
-};
-  
+}
